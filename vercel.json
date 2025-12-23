@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/github-embedding/update",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/notion-embedding/update",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

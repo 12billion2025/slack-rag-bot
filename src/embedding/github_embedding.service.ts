@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Tenants } from '@prisma/client';
-import { Pinecone } from '@pinecone-database/pinecone';
+import { Index, Pinecone, RecordMetadata } from '@pinecone-database/pinecone';
 import { Octokit } from '@octokit/rest';
-import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { excludedDirs, supportedExtensions } from 'src/constants';
+import { excludedDirs, supportedExtensions } from '../constants';
+import { GoogleEmbeddings } from '../../model/model';
 
 @Injectable()
 export class GithubEmbeddingService {
@@ -16,9 +16,12 @@ export class GithubEmbeddingService {
   private readonly pineconeIndex = this.pinecone.Index(
     this.configService.get<string>('PINECONE_GITHUB_INDEX_NAME')!,
   );
-  private readonly embeddings = new OpenAIEmbeddings({
-    openAIApiKey: this.configService.get('OPENAI_API_KEY'),
-    modelName: this.configService.get('OPENAI_EMBEDDING_MODEL'),
+  private readonly embeddings = new GoogleEmbeddings({
+    apiKey: this.configService.get('OPENAI_API_KEY'),
+    model:
+      this.configService.get('OPENAI_EMBEDDING_MODEL') ||
+      'gemini-embedding-001',
+    dimensions: 768,
   });
   private readonly textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
@@ -347,21 +350,26 @@ export class GithubEmbeddingService {
   }
 
   private async deleteExistingEmbeddings(
-    pineconeStore: any,
+    pineconeStore: Index<RecordMetadata>,
     repository: string,
     filePath: string,
   ) {
     try {
-      const idsToTry = [];
-      for (let i = 0; i < 1000; i++) {
-        idsToTry.push(this.createChunkId(repository, filePath, i));
+      const prefix = `${repository}:${filePath}:`;
+      const listResult = await pineconeStore.listPaginated({ prefix });
+
+      if (listResult.vectors && listResult.vectors.length > 0) {
+        const ids = listResult.vectors.map((v: any) => v.id);
+        await pineconeStore.deleteMany(ids);
+        this.logger.log(
+          `기존 파일 삭제 완료: ${repository}/${filePath} (${ids.length}개 벡터)`,
+        );
+      } else {
+        this.logger.log(`삭제할 벡터 없음: ${repository}/${filePath}`);
       }
-
-      await pineconeStore.deleteMany(idsToTry);
-
-      this.logger.log(`패턴 기반 삭제 완료: ${repository}/${filePath}`);
     } catch (error) {
-      this.logger.error(`패턴 기반 삭제 실패:`, error);
+      console.log(error);
+      this.logger.log(`기존 파일 삭제 실패:`, error);
     }
   }
 }

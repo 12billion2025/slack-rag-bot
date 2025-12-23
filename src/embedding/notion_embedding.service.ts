@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { Tenants } from '@prisma/client';
 import { Client } from '@notionhq/client';
+import { GoogleEmbeddings } from '../../model/model';
 
 @Injectable()
 export class NotionEmbeddingService {
@@ -15,9 +15,12 @@ export class NotionEmbeddingService {
   private readonly pineconeIndex = this.pinecone.Index(
     this.configService.getOrThrow<string>('PINECONE_NOTION_INDEX_NAME')!,
   );
-  private readonly embeddings = new OpenAIEmbeddings({
-    openAIApiKey: this.configService.getOrThrow<string>('OPENAI_API_KEY')!,
-    modelName: this.configService.getOrThrow<string>('OPENAI_EMBEDDING_MODEL')!,
+  private readonly embeddings = new GoogleEmbeddings({
+    apiKey: this.configService.getOrThrow<string>('OPENAI_API_KEY')!,
+    model:
+      this.configService.get('OPENAI_EMBEDDING_MODEL') ||
+      'gemini-embedding-001',
+    dimensions: 768,
   });
   private readonly textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
@@ -286,16 +289,24 @@ export class NotionEmbeddingService {
 
   private async deleteExistingEmbeddings(pineconeStore: any, pageId: string) {
     try {
-      const idsToTry = [];
-      for (let i = 0; i < 1000; i++) {
-        idsToTry.push(this.createChunkId(pageId, i));
+      // prefix를 사용하여 해당 페이지의 모든 벡터 ID 찾기
+      const prefix = `notion_${pageId}_chunk_`;
+      const listResult = await pineconeStore.listPaginated({
+        prefix: prefix,
+      });
+
+      if (listResult.vectors && listResult.vectors.length > 0) {
+        // 찾은 벡터 ID들을 삭제
+        const ids = listResult.vectors.map((v: any) => v.id);
+        await pineconeStore.deleteMany(ids);
+        this.logger.log(
+          `기존 페이지 삭제 완료: ${pageId} (${ids.length}개 벡터)`,
+        );
+      } else {
+        this.logger.log(`삭제할 벡터 없음: ${pageId}`);
       }
-
-      await pineconeStore.deleteMany(idsToTry);
-
-      this.logger.log(`패턴 기반 삭제 완료: ${pageId}`);
     } catch (error) {
-      this.logger.error(`패턴 기반 삭제 실패:`, error);
+      this.logger.error(`기존 페이지 삭제 실패:`, error);
     }
   }
 }

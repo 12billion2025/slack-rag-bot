@@ -1,8 +1,8 @@
 import { Body, Controller, Logger, Post, Res, UseGuards } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { NotionEmbeddingService } from './notion_embedding.service';
 import { ApiKeyGuard } from '../api-key.guard';
+import { VercelCronGuard } from '../vercel-cron.guard';
 import { Response } from 'express';
 
 @Controller('notion-embedding')
@@ -14,8 +14,9 @@ export class NotionEmbeddingController {
     private readonly notionEmbeddingService: NotionEmbeddingService,
   ) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
-  async updateEmbedding() {
+  @Post('update')
+  @UseGuards(VercelCronGuard)
+  async updateEmbedding(@Res() res: Response) {
     const tenants = await this.prisma.tenants.findMany({
       where: {
         notionApiKey: { not: null },
@@ -26,6 +27,8 @@ export class NotionEmbeddingController {
     for (const tenant of tenants) {
       try {
         await this.notionEmbeddingService.updateNotionPinecone(tenant);
+        this.logger.log('Notion 임베딩 업데이트 완료');
+        res.status(200).json({ message: 'Notion 임베딩 업데이트 완료' });
       } catch (error) {
         this.logger.error(
           `테넌트 ${tenant.tenantId}의 Notion 임베딩 업데이트 실패:`,
@@ -33,7 +36,6 @@ export class NotionEmbeddingController {
         );
       }
     }
-    this.logger.log('Notion 임베딩 업데이트 완료');
   }
 
   @Post('init')
@@ -42,8 +44,6 @@ export class NotionEmbeddingController {
     @Body() body: { tenantId: string },
     @Res() res: Response,
   ) {
-    res.status(200).json({ message: 'Notion 임베딩 초기화 시작' });
-
     const tenant = await this.prisma.tenants.findFirstOrThrow({
       where: { tenantId: body.tenantId },
       orderBy: { updatedAt: 'desc' },
@@ -51,6 +51,8 @@ export class NotionEmbeddingController {
 
     try {
       await this.notionEmbeddingService.initNotionPinecone(tenant);
+      this.logger.log('Notion 임베딩 초기화 완료');
+      res.status(200).json({ message: 'Notion 임베딩 초기화 완료' });
     } catch (error) {
       console.log(error);
       this.logger.error(
@@ -58,6 +60,5 @@ export class NotionEmbeddingController {
         error,
       );
     }
-    this.logger.log('Notion 임베딩 초기화 완료');
   }
 }

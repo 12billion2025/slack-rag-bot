@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NotionService } from './notion.service';
-import { PineconeModule } from 'pinecone/pinecone.module';
-import { ModelModule } from 'model/model.module';
+import { PineconeModule } from '../../pinecone/pinecone.module';
+import { ModelModule } from '../../model/model.module';
 
 @Module({
   imports: [PineconeModule, ModelModule],

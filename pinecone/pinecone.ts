@@ -4,7 +4,7 @@ import { PineconeStore } from '@langchain/pinecone';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { ConfigService } from '@nestjs/config';
 import { REQUEST } from '@nestjs/core';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 export const NotionPineconeProvider: FactoryProvider<PineconeStore> = {
   scope: Scope.REQUEST,

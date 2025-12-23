@@ -1,6 +1,6 @@
 import { FactoryProvider, Scope } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { WebClient } from '@slack/web-api';
 
 export const SlackProvider: FactoryProvider<WebClient> = {
