@@ -1,3 +1,5 @@
+> https://slack-rag-bot-console.vercel.app 에 접속하여 바로 사용해보실 수 있습니다.
+
 # AI-Powered Slack Bot
 
 AI를 활용한 인텔리전트 Slack 봇으로, GitHub 코드베이스와 Notion 문서를 검색하여 질문에 답변하는 시스템입니다.
