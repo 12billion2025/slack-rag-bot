@@ -23,8 +23,8 @@ export class NotionEmbeddingService {
     dimensions: 768,
   });
   private readonly textSplitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1000,
-    chunkOverlap: 200,
+    chunkSize: 512,
+    chunkOverlap: 75,
   });
 
   constructor(private readonly configService: ConfigService) {}

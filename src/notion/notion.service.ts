@@ -18,7 +18,7 @@ export class NotionService implements IChatService {
   ): Promise<{ response: string }> {
     const similarDocs = await this.pinecone.similaritySearch(
       state.userInput,
-      5,
+      3,
     );
 
     if (similarDocs.length === 0)
